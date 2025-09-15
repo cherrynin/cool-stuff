@@ -1,288 +1,128 @@
-let xp = 0;
-let health = 100;
-let gold = 50;
-let currentWeapon = 0;
-let fighting;
-let monsterHealth;
-let inventory = ["stick"];
+const taskForm = document.getElementById("task-form");
+const confirmCloseDialog = document.getElementById("confirm-close-dialog");
+const openTaskFormBtn = document.getElementById("open-task-form-btn");
+const closeTaskFormBtn = document.getElementById("close-task-form-btn");
+const addOrUpdateTaskBtn = document.getElementById("add-or-update-task-btn");
+const cancelBtn = document.getElementById("cancel-btn");
+const discardBtn = document.getElementById("discard-btn");
+const tasksContainer = document.getElementById("tasks-container");
+const titleInput = document.getElementById("title-input");
+const dateInput = document.getElementById("date-input");
+const descriptionInput = document.getElementById("description-input");
 
-const button1 = document.querySelector('#button1');
-const button2 = document.querySelector("#button2");
-const button3 = document.querySelector("#button3");
-const text = document.querySelector("#text");
-const xpText = document.querySelector("#xpText");
-const healthText = document.querySelector("#healthText");
-const goldText = document.querySelector("#goldText");
-const monsterStats = document.querySelector("#monsterStats");
-const monsterName = document.querySelector("#monsterName");
-const monsterHealthText = document.querySelector("#monsterHealth");
-const weapons = [
-  { name: 'stick', power: 5 },
-  { name: 'dagger', power: 30 },
-  { name: 'claw hammer', power: 50 },
-  { name: 'sword', power: 100 }
-];
-const monsters = [
-  {
-    name: "slime",
-    level: 2,
-    health: 15
-  },
-  {
-    name: "fanged beast",
-    level: 8,
-    health: 60
-  },
-  {
-    name: "dragon",
-    level: 20,
-    health: 300
+const taskData = JSON.parse(localStorage.getItem("data")) || [];
+let currentTask = {};
+
+const removeSpecialChars = (val) => {
+  return val.trim().replace(/[^A-Za-z0-9\-\s]/g, '')
+}
+
+const addOrUpdateTask = () => {
+   if(!titleInput.value.trim()){
+    alert("Please provide a title");
+    return;
   }
-]
-const locations = [
-  {
-    name: "town square",
-    "button text": ["Go to store", "Go to cave", "Fight dragon"],
-    "button functions": [goStore, goCave, fightDragon],
-    text: "You are in the town square. You see a sign that says \"Store\"."
-  },
-  {
-    name: "store",
-    "button text": ["Buy 10 health (10 gold)", "Buy weapon (30 gold)", "Go to town square"],
-    "button functions": [buyHealth, buyWeapon, goTown],
-    text: "You enter the store."
-  },
-  {
-    name: "cave",
-    "button text": ["Fight slime", "Fight fanged beast", "Go to town square"],
-    "button functions": [fightSlime, fightBeast, goTown],
-    text: "You enter the cave. You see some monsters."
-  },
-  {
-    name: "fight",
-    "button text": ["Attack", "Dodge", "Run"],
-    "button functions": [attack, dodge, goTown],
-    text: "You are fighting a monster."
-  },
-  {
-    name: "kill monster",
-    "button text": ["Go to town square", "Go to town square", "Go to town square"],
-    "button functions": [goTown, goTown, goTown],
-    text: 'The monster screams "Arg!" as it dies. You gain experience points and find gold.'
-  },
-  {
-    name: "lose",
-    "button text": ["REPLAY?", "REPLAY?", "REPLAY?"],
-    "button functions": [restart, restart, restart],
-    text: "You die. &#x2620;"
-  },
-  { 
-    name: "win", 
-    "button text": ["REPLAY?", "REPLAY?", "REPLAY?"], 
-    "button functions": [restart, restart, restart], 
-    text: "You defeat the dragon! YOU WIN THE GAME! &#x1F389;" 
-  },
-  {
-    name: "easter egg",
-    "button text": ["2", "8", "Go to town square?"],
-    "button functions": [pickTwo, pickEight, goTown],
-    text: "You find a secret game. Pick a number above. Ten numbers will be randomly chosen between 0 and 10. If the number you choose matches one of the random numbers, you win!"
-  }
-];
+  const dataArrIndex = taskData.findIndex((item) => item.id === currentTask.id);
+  const taskObj = {
+    id: `${removeSpecialChars(titleInput.value).toLowerCase().split(" ").join("-")}-${Date.now()}`,
+    title: removeSpecialChars(titleInput.value),
+    date: dateInput.value,
+    description: removeSpecialChars(descriptionInput.value),
+  };
 
-// initialize buttons
-button1.onclick = goStore;
-button2.onclick = goCave;
-button3.onclick = fightDragon;
-
-function update(location) {
-  monsterStats.style.display = "none";
-  button1.innerText = location["button text"][0];
-  button2.innerText = location["button text"][1];
-  button3.innerText = location["button text"][2];
-  button1.onclick = location["button functions"][0];
-  button2.onclick = location["button functions"][1];
-  button3.onclick = location["button functions"][2];
-  text.innerHTML = location.text;
-}
-
-function goTown() {
-  update(locations[0]);
-}
-
-function goStore() {
-  update(locations[1]);
-}
-
-function goCave() {
-  update(locations[2]);
-}
-
-function buyHealth() {
-  if (gold >= 10) {
-    gold -= 10;
-    health += 10;
-    goldText.innerText = gold;
-    healthText.innerText = health;
+  if (dataArrIndex === -1) {
+    taskData.unshift(taskObj);
   } else {
-    text.innerText = "You do not have enough gold to buy health.";
+    taskData[dataArrIndex] = taskObj;
   }
-}
 
-function buyWeapon() {
-  if (currentWeapon < weapons.length - 1) {
-    if (gold >= 30) {
-      gold -= 30;
-      currentWeapon++;
-      goldText.innerText = gold;
-      let newWeapon = weapons[currentWeapon].name;
-      text.innerText = "You now have a " + newWeapon + ".";
-      inventory.push(newWeapon);
-      text.innerText += " In your inventory you have: " + inventory;
-    } else {
-      text.innerText = "You do not have enough gold to buy a weapon.";
+  localStorage.setItem("data", JSON.stringify(taskData));
+  updateTaskContainer()
+  reset()
+};
+
+const updateTaskContainer = () => {
+  tasksContainer.innerHTML = "";
+
+  taskData.forEach(
+    ({ id, title, date, description }) => {
+        (tasksContainer.innerHTML += `
+        <div class="task" id="${id}">
+          <p><strong>Title:</strong> ${title}</p>
+          <p><strong>Date:</strong> ${date}</p>
+          <p><strong>Description:</strong> ${description}</p>
+          <button onclick="editTask(this)" type="button" class="btn">Edit</button>
+          <button onclick="deleteTask(this)" type="button" class="btn">Delete</button> 
+        </div>
+      `)
     }
+  );
+};
+
+
+const deleteTask = (buttonEl) => {
+  const dataArrIndex = taskData.findIndex(
+    (item) => item.id === buttonEl.parentElement.id
+  );
+
+  buttonEl.parentElement.remove();
+  taskData.splice(dataArrIndex, 1);
+  localStorage.setItem("data", JSON.stringify(taskData));
+}
+
+const editTask = (buttonEl) => {
+    const dataArrIndex = taskData.findIndex(
+    (item) => item.id === buttonEl.parentElement.id
+  );
+
+  currentTask = taskData[dataArrIndex];
+
+  titleInput.value = currentTask.title;
+  dateInput.value = currentTask.date;
+  descriptionInput.value = currentTask.description;
+
+  addOrUpdateTaskBtn.innerText = "Update Task";
+
+  taskForm.classList.toggle("hidden");  
+}
+
+const reset = () => {
+  addOrUpdateTaskBtn.innerText = "Add Task";
+  titleInput.value = "";
+  dateInput.value = "";
+  descriptionInput.value = "";
+  taskForm.classList.toggle("hidden");
+  currentTask = {};
+}
+
+if (taskData.length) {
+  updateTaskContainer();
+}
+
+openTaskFormBtn.addEventListener("click", () =>
+  taskForm.classList.toggle("hidden")
+);
+
+closeTaskFormBtn.addEventListener("click", () => {
+  const formInputsContainValues = titleInput.value || dateInput.value || descriptionInput.value;
+  const formInputValuesUpdated = titleInput.value !== currentTask.title || dateInput.value !== currentTask.date || descriptionInput.value !== currentTask.description;
+
+  if (formInputsContainValues && formInputValuesUpdated) {
+    confirmCloseDialog.showModal();
   } else {
-    text.innerText = "You already have the most powerful weapon!";
-    button2.innerText = "Sell weapon for 15 gold";
-    button2.onclick = sellWeapon;
+    reset();
   }
-}
+});
 
-function sellWeapon() {
-  if (inventory.length > 1) {
-    gold += 15;
-    goldText.innerText = gold;
-    let currentWeapon = inventory.shift();
-    text.innerText = "You sold a " + currentWeapon + ".";
-    text.innerText += " In your inventory you have: " + inventory;
-  } else {
-    text.innerText = "Don't sell your only weapon!";
-  }
-}
+cancelBtn.addEventListener("click", () => confirmCloseDialog.close());
 
-function fightSlime() {
-  fighting = 0;
-  goFight();
-}
+discardBtn.addEventListener("click", () => {
+  confirmCloseDialog.close();
+  reset()
+});
 
-function fightBeast() {
-  fighting = 1;
-  goFight();
-}
+taskForm.addEventListener("submit", (e) => {
+  e.preventDefault();
 
-function fightDragon() {
-  fighting = 2;
-  goFight();
-}
-
-function goFight() {
-  update(locations[3]);
-  monsterHealth = monsters[fighting].health;
-  monsterStats.style.display = "block";
-  monsterName.innerText = monsters[fighting].name;
-  monsterHealthText.innerText = monsterHealth;
-}
-
-function attack() {
-  text.innerText = "The " + monsters[fighting].name + " attacks.";
-  text.innerText += " You attack it with your " + weapons[currentWeapon].name + ".";
-  health -= getMonsterAttackValue(monsters[fighting].level);
-  if (isMonsterHit()) {
-    monsterHealth -= weapons[currentWeapon].power + Math.floor(Math.random() * xp) + 1;    
-  } else {
-    text.innerText += " You miss.";
-  }
-  healthText.innerText = health;
-  monsterHealthText.innerText = monsterHealth;
-  if (health <= 0) {
-    lose();
-  } else if (monsterHealth <= 0) {
-    if (fighting === 2) {
-      winGame();
-    } else {
-      defeatMonster();
-    }
-  }
-  if (Math.random() <= .1 && inventory.length !== 1) {
-    text.innerText += " Your " + inventory.pop() + " breaks.";
-    currentWeapon--;
-  }
-}
-
-function getMonsterAttackValue(level) {
-  const hit = (level * 5) - (Math.floor(Math.random() * xp));
-  console.log(hit);
-  return hit > 0 ? hit : 0;
-}
-
-function isMonsterHit() {
-  return Math.random() > .2 || health < 20;
-}
-
-function dodge() {
-  text.innerText = "You dodge the attack from the " + monsters[fighting].name;
-}
-
-function defeatMonster() {
-  gold += Math.floor(monsters[fighting].level * 6.7);
-  xp += monsters[fighting].level;
-  goldText.innerText = gold;
-  xpText.innerText = xp;
-  update(locations[4]);
-}
-
-function lose() {
-  update(locations[5]);
-}
-
-function winGame() {
-  update(locations[6]);
-}
-
-function restart() {
-  xp = 0;
-  health = 100;
-  gold = 50;
-  currentWeapon = 0;
-  inventory = ["stick"];
-  goldText.innerText = gold;
-  healthText.innerText = health;
-  xpText.innerText = xp;
-  goTown();
-}
-
-function easterEgg() {
-  update(locations[7]);
-}
-
-function pickTwo() {
-  pick(2);
-}
-
-function pickEight() {
-  pick(8);
-}
-
-function pick(guess) {
-  const numbers = [];
-  while (numbers.length < 10) {
-    numbers.push(Math.floor(Math.random() * 11));
-  }
-  text.innerText = "You picked " + guess + ". Here are the random numbers:\n";
-  for (let i = 0; i < 10; i++) {
-    text.innerText += numbers[i] + "\n";
-  }
-  if (numbers.includes(guess)) {
-    text.innerText += "Right! You win 20 gold!";
-    gold += 20;
-    goldText.innerText = gold;
-  } else {
-    text.innerText += "Wrong! You lose 10 health!";
-    health -= 10;
-    healthText.innerText = health;
-    if (health <= 0) {
-      lose();
-    }
-  }
-}
+  addOrUpdateTask();
+});
